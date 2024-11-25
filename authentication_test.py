@@ -3,6 +3,7 @@ import jwt
 import bcrypt
 from pymongo import MongoClient
 from flask import Flask, jsonify, request
+from bson.objectid import ObjectId
 # from flask_pymongo import PyMongo
 from datetime import datetime, timedelta
 # from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -68,9 +69,33 @@ def login():
     
     return jsonify ({"message": "login successful", "token": token}), 200 
 
-@app.route('')
+@app.route('/authorize', methods = ['GET'])
+def authorize():
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header:
+        return jsonify ({"message": "Missing or invalid token"}), 401 
+    
+    print(f"Authorization Header: {auth_header}")
+    
+    token = auth_header
+    print(token)
+    
+    try: 
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        print("hi error arrised!!", decoded)
+    # user = client.db.user_data.find_one({"_id": decoded["user_id"]})
+        user = client.db.user_data.find_one({"_id": ObjectId(decoded["user_id"])})
+        if not user:
+            return jsonify ({"message":"user not found"}), 404 
+        
+        return jsonify({"message": "Welcome to the protected route", "email": user['email']})
+    except jwt.ExpiredSignatureError:
+        return jsonify({"message": "token has expired"}), 401 
+    except jwt.InvalidTokenError:
+        return jsonify({"message": "Invalid token"}), 401     
 
 if __name__ == '__main__':
-    app.run(debug = True)
+    app.run(debug = True, port = 5001)
 
 
